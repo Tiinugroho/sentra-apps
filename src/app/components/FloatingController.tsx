@@ -10,16 +10,18 @@
     const hasStartedRef = useRef<boolean>(false);
 
     useEffect(() => {
-        // Inisialisasi Audio Latar Belakang Secara Tersembunyi
+        // 1. Inisialisasi Audio Latar Belakang Secara Tersembunyi
         audioRef.current = new Audio('/ambient-kids.mp3');
         audioRef.current.loop = true;
         audioRef.current.volume = 0.25;
 
+        // --- STRATEGI FORCE AUTOPLAY ---
         const forcePlayAudio = () => {
         if (audioRef.current && !hasStartedRef.current) {
             audioRef.current.play()
             .then(() => {
                 hasStartedRef.current = true;
+                // Bersihkan pemicu awal jika autoplay berhasil tembus
                 window.removeEventListener('click', forcePlayAudio);
                 window.removeEventListener('scroll', forcePlayAudio);
                 window.removeEventListener('touchstart', forcePlayAudio);
@@ -32,6 +34,22 @@
         window.addEventListener('scroll', forcePlayAudio);
         window.addEventListener('touchstart', forcePlayAudio);
 
+        // --- PERBAIKAN UTAMA: DETEKSI PINDAH HALAMAN / TAB BROWSER ---
+        const handleVisibilityChange = () => {
+        if (!audioRef.current || !hasStartedRef.current) return;
+
+        if (document.hidden) {
+            // Jika pengguna pindah tab atau meminimalkan browser, matikan suara sejenak
+            audioRef.current.pause();
+        } else {
+            // Jika pengguna kembali lagi ke halaman web, hidupkan suara lagi secara otomatis
+            audioRef.current.play().catch(() => {});
+        }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // Deteksi pergerakan scroll khusus untuk tombol "Scroll To Top"
         const checkScroll = () => {
         if (window.scrollY > 300) {
             setShowScroll(true);
@@ -47,6 +65,7 @@
         window.removeEventListener('click', forcePlayAudio);
         window.removeEventListener('scroll', forcePlayAudio);
         window.removeEventListener('touchstart', forcePlayAudio);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
         if (audioRef.current) audioRef.current.pause();
         };
     }, []);
@@ -60,7 +79,6 @@
     };
 
     return (
-        // Menggunakan h-14 md:h-auto sebagai patokan jangkar koordinat absolute terbawah di mobile
         <div className="fixed bottom-6 right-6 z-50 font-sans antialiased h-14 md:h-auto flex flex-col justify-end items-center">
         
         {/* ================================================================= */}
@@ -68,11 +86,7 @@
         {/* ================================================================= */}
         <div className="flex flex-col items-center md:hidden relative w-14">
             
-            {/* PERBAIKAN UTAMA MOBILE: 
-            Menggunakan bottom-[72px] (tinggi tombol hamburger + jarak gap). 
-            Saat showScroll false, posisi top/bottom tidak berubah, elemen dikunci di koordinat tersebut,
-            lalu ditarik lurus ke kanan menggunakan translate-x-16.
-            */}
+            {/* Tombol Scroll To Top Mobile */}
             <div 
             className={`absolute bottom-[72px] transition-all duration-300 ease-in-out ${
                 showScroll 
@@ -90,7 +104,7 @@
             </button>
             </div>
 
-            {/* Sub-Menu Lintasan Sosial Media Mobile (Slide Up dari atas tombol hamburger) */}
+            {/* Sub-Menu Lintasan Sosial Media Mobile */}
             <div 
             className={`absolute bottom-[72px] flex flex-col items-center gap-3.5 transition-all duration-500 ease-in-out origin-bottom ${
                 isMenuOpen 
@@ -125,7 +139,7 @@
             </a>
             </div>
 
-            {/* Tombol Utama Hamburger Mobile (Tetap Statis Menjaga Alur Layout Utama) */}
+            {/* Tombol Utama Hamburger Mobile */}
             <button
             onClick={handleMenuToggle}
             className={`w-14 h-14 rounded-full text-white shadow-xl flex items-center justify-center border transition-all duration-300 transform active:scale-95 absolute bottom-0 ${
